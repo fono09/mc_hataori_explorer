@@ -80,6 +80,83 @@ void show(unsigned int *a){
     }
 }
 
+int* merge_min_index(unsigned int *target, unsigned int *current, unsigned int img_ui[][pack_bit_length]){
+    int* min_index_and_dist = new int[2];
+    min_index_and_dist[0] = -1;
+    min_index_and_dist[1] = 800;
+    REP(i, sample_num) {
+      auto merge_result = merge(current, img_ui[i]);
+      int target_dist = distance(target, merge_result);
+      if(min_index_and_dist[1] > target_dist) {
+        min_index_and_dist[0] = i;
+        min_index_and_dist[1] = target_dist;
+        cout << "merge_min_index: " << i << " " << target_dist << endl;
+      }
+      delete merge_result;
+    }
+    return min_index_and_dist;
+}
+
+int* inverse_merge_min_index(unsigned int *target, unsigned int *current, unsigned int img_ui[][pack_bit_length]){
+    int* min_index_and_dist = new int[2];
+    min_index_and_dist[0] = -1;
+    min_index_and_dist[1] = 800;
+    REP(i, sample_num) {
+      auto inverse_merge_result = inverse_merge(current, img_ui[i]);
+      int target_dist = distance(target, inverse_merge_result);
+      if(min_index_and_dist[1] > target_dist) {
+        min_index_and_dist[0] = i;
+        min_index_and_dist[1] = target_dist;
+        cout << "inverse_merge_min_index: " << i << " " << target_dist << endl;
+        show(inverse_merge_result);
+      }
+      delete inverse_merge_result;
+    }
+    return min_index_and_dist;
+}
+
+int* both_min_index(unsigned int *target, unsigned int *current, unsigned int img_ui[][pack_bit_length]){
+    int* min_indexes_and_dist = new int[3];
+    min_indexes_and_dist[0] = -1;
+    min_indexes_and_dist[1] = -1;
+    min_indexes_and_dist[2] = 800;
+    REP(i, sample_num){
+        REP(j, sample_num){
+            if (i==j) continue;
+            auto merge_result = merge(current, img_ui[i]);
+            auto ivm_result = inverse_merge(merge_result, img_ui[j]);
+            int target_dist = distance(target, ivm_result);
+
+            if(min_indexes_and_dist[2] > target_dist) {
+                min_indexes_and_dist[0] = i;
+                min_indexes_and_dist[1] = j;
+                min_indexes_and_dist[2] = target_dist;
+                cout << "both_min_index: " << i << " " << j << " " << target_dist << endl;
+                show(ivm_result);
+            }
+            delete ivm_result;
+            delete merge_result;
+        }
+    }
+    return min_indexes_and_dist;
+}
+
+class Operation {
+public:
+  char op;
+  int idx;
+
+  Operation() {
+    op = '\0';
+    idx = -1;
+  }
+
+  Operation(char iop, int iidx) {
+    op = iop;
+    idx = iidx;
+  }
+};
+
 int main(){
 	// cin.tie(0);
 	// ios::sync_with_stdio(false);
@@ -104,12 +181,6 @@ int main(){
         }
         cin.ignore();
     }
-    REP(i,40){
-        REP(j,20){
-            cout << imgs[target_img_id][i][j];
-        }
-        cout << endl;
-    }
     REP(i, sample_num+1) {
         int ky=0;
         REP(j, 40){
@@ -120,52 +191,63 @@ int main(){
         }
     }
 
-    for(int j=0;j<40;j++){
-        for(int k=0;k<20;k++){
-            cout << imgs[7][j][k];
+    Operation* operations = new Operation[6];
+
+    auto current = merge(img_ui[sample_num-1], img_ui[sample_num-1]);
+    REP(i, 6) {
+      auto merge_result = merge_min_index(img_ui[target_img_id], current, img_ui);
+      auto inverse_merge_result = inverse_merge_min_index(img_ui[target_img_id], current, img_ui);
+      auto both_merge_result = both_min_index(img_ui[target_img_id], current, img_ui);
+
+      auto results = new int[3];
+      results[0] = merge_result[1];
+      results[1] = inverse_merge_result[1];
+      results[2] = both_merge_result[2];
+
+      int min_result = 800;
+      int min_idx = -1;
+      REP(j, 3) {
+        if(min_result > results[j]) {
+          min_result = results[j];
+          min_idx = j;
         }
-        cout << endl;
+      }
+      cout << "min_idx " << min_idx << " min_result " << min_result << endl;
+
+      auto before_current = current;
+      switch(min_idx) {
+        case 0:
+          current = merge(current, img_ui[merge_result[0]]);
+          operations[i].op = 'F';
+          operations[i].idx = merge_result[0];
+          break;
+        case 1:
+          current = inverse_merge(current, img_ui[inverse_merge_result[0]]);
+          operations[i].op = 'B';
+          operations[i].idx = inverse_merge_result[0];
+          break;
+        case 2:
+          auto merge_result = merge(current, img_ui[both_merge_result[0]]);
+          current = inverse_merge(merge_result, img_ui[both_merge_result[1]]);
+          operations[i].op = 'F';
+          operations[i].idx = both_merge_result[0];
+          delete merge_result;
+          i++;
+          operations[i].op = 'B';
+          operations[i].idx = both_merge_result[1];
+          break;
+      }
+      delete before_current;
     }
-    REP(j,pack_bit_length){
-        printf("%016x", img_ui[7][j]);
+    
+    cout << "current" << endl;
+    show(current);
 
-    }
-    cout << endl;
-
-    int min_dist = 800;
-    REP(i, sample_num){
-        int i_target_dist = distance(img_ui[target_img_id], img_ui[i]);
-        if(min_dist > i_target_dist) {
-            min_dist = i_target_dist;
-            cout << "D:" << min_dist << " only " << i <<  endl;
-
-            show(img_ui[i]);
-        }
-    }
-    REP(i,sample_num){
-        REP(j, sample_num){
-            if (i==j) continue;
-            int i_target_dist = distance(img_ui[target_img_id], inverse_merge(img_ui[i], img_ui[j]));
-
-            if(min_dist > i_target_dist) {
-                min_dist = i_target_dist;
-                cout << "D:" << min_dist << " " << i << " minus " << j <<  endl;
-                show(inverse_merge(img_ui[i], img_ui[j]));
-            }
-        }
-    }
-
-    REP(i,sample_num){
-        REP(j, sample_num){
-            if (i==j) continue;
-            int i_target_dist = distance(img_ui[target_img_id], merge(img_ui[i], img_ui[j]));
-            if(min_dist > i_target_dist) {
-                min_dist = i_target_dist;
-                cout << "D:" << min_dist << " " << i << " plus " << j <<  endl;
-                show(merge(img_ui[i], img_ui[j]));
-            }
-        }
+    cout << "operations" << endl;
+    REP(i, 6) {
+      cout << operations[i].op << " " << operations[i].idx << endl;
     }
 
-	return 0;
+    return 0;
+
 }
